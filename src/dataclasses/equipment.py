@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 @dataclass
-class Pricing:
+class Equipment:
     id: int
     name: str
-    cost: float     # Cost per hour
+    count: int

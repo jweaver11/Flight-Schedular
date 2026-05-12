@@ -21,5 +21,6 @@ class Booking:
 # bookings 
 # Instructors
 # Aircrafts
+# Equipment
 # Students
 # Pricing
