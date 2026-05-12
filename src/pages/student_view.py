@@ -5,19 +5,7 @@ import datetime
 import calendar as cal_module
 
 
-def _open_dialog(dialog):
-    if dialog not in ft.context.page.overlay:
-        ft.context.page.overlay.append(dialog)
-    dialog.open = True
-    ft.context.page.update()
 
-
-def _close_dialog(dialog):
-    dialog.open = False
-    ft.context.page.update()
-
-
-@ft.component
 def StudentViewPage():
     selected_tab,  set_selected_tab  = ft.use_state(0)
     current_year,  set_current_year  = ft.use_state(datetime.date.today().year)
@@ -122,7 +110,7 @@ def StudentViewPage():
                 ft.ElevatedButton("Confirm Booking", on_click=lambda d=dlg: confirm(d)),
             ],
         )
-        _open_dialog(dlg)
+        ft.context.page.show_dialog(dlg)
 
     # ── Monthly calendar ──────────────────────────────────────────────────
     def _build_calendar():
@@ -369,7 +357,7 @@ def StudentViewPage():
                     ft.ElevatedButton("Save", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         return ft.Column([
             ft.Text("Account",

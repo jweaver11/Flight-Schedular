@@ -8,21 +8,40 @@ from pages.instructor_view import InstructorViewPage
 from pages.student_view import StudentViewPage
 
 
-@ft.component
-def App():
+async def main(page: ft.Page):
 
-    return ft.Router([
-        ft.Route(path="/", index=True, component=LoginPage),                    # Default - login page
-        ft.Route(path="student_view", component=StudentViewPage),               # Main scheduling view for students
-        ft.Route(path="register_account", component=RegisterAccountPage),       # Register new accounts page
-        ft.Route(path="reset_password", component=ResetPasswordPage),           # Reset password page
+    # TEMP: Create admin accounts
+    from models.admin import generate_admin_json
+    generate_admin_json()
 
-        ft.Route(path="view_selector", component=ViewSelector),                 # View selector - determines what view to show based on user id (student, instructor, admin)
-        ft.Route(path="admin_view", component=AdminViewPage),                 # Main view for admins
-        ft.Route(path="instructor_view", component=InstructorViewPage),            # Main view for instructors
-        ft.Route(path="instructor_view", component=StudentViewPage),            # Main view for students
-        
-    ])
-        
+    async def _route_change(e: ft.RouteChangeEvent):
+        page.controls.clear()
+
+        route = page.route
+        match route:
+            case "/":
+                page.add(LoginPage(page))
+            case "/register_account":
+                page.add(RegisterAccountPage(page))
+            case "/reset_password":
+                page.add(ResetPasswordPage(page))
+            case "/view_selector":
+                page.add(ViewSelector(page))
+            case "/admin_view":
+                page.add(AdminViewPage(page))
+            case "/instructor_view":
+                page.add(InstructorViewPage(page))
+            case "/student_view":
+                page.add(StudentViewPage(page))
+            case _:
+                page.add(ft.Text("404: Page not found"))
+
+    page.on_route_change = _route_change
+    page.theme_mode = ft.ThemeMode.SYSTEM
+
+    # Start at the login page
+    page.add(LoginPage(page))
+
+    
  
-ft.run(lambda page: page.render(App))
+ft.run(main)

@@ -2,9 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Aircraft:
-    id: int
     name: str
-
     type: str
     
     capacity: int

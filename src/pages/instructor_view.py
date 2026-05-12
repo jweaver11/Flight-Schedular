@@ -17,7 +17,6 @@ def _close_dialog(dialog):
     ft.context.page.update()
 
 
-@ft.component
 def InstructorViewPage():
     selected_tab,  set_selected_tab  = ft.use_state(0)
     current_year,  set_current_year  = ft.use_state(datetime.date.today().year)

@@ -4,19 +4,6 @@ import flet as ft
 import datetime
 
 
-def _open_dialog(dialog):
-    if dialog not in ft.context.page.overlay:
-        ft.context.page.overlay.append(dialog)
-    dialog.open = True
-    ft.context.page.update()
-
-
-def _close_dialog(dialog):
-    dialog.open = False
-    ft.context.page.update()
-
-
-@ft.component
 def AdminViewPage():
     selected_index, set_selected_index = ft.use_state(0)
 
@@ -139,10 +126,10 @@ def AdminViewPage():
                 content=ft.Column([name_f, email_f, pwd_f], tight=True, spacing=12),
                 actions=[
                     ft.TextButton("Cancel",  on_click=lambda: ft.context.page.pop_dialog()),
-                    ft.ElevatedButton("Add", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
+                    ft.ElevatedButton("Add", on_click=lambda: ft.context.page.pop_dialog()), 
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         def open_edit(inst):
             name_f  = ft.TextField(label="Full Name",  value=inst["name"])
@@ -157,7 +144,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Save", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         cards = [
             _list_card(ft.Row([
@@ -193,7 +180,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Add", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         def open_edit(ac):
             dlg = ft.AlertDialog(
@@ -210,7 +197,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Save", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         cards = [
             _list_card(ft.Row([
@@ -244,7 +231,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Add", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         def open_edit(eq):
             dlg = ft.AlertDialog(
@@ -260,7 +247,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Save", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         cards = [
             _list_card(ft.Row([
@@ -293,7 +280,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Add", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         def open_edit(pr):
             dlg = ft.AlertDialog(
@@ -309,7 +296,7 @@ def AdminViewPage():
                     ft.ElevatedButton("Save", on_click=lambda: ft.context.page.pop_dialog()),  # TODO: persist
                 ],
             )
-            _open_dialog(dlg)
+            ft.context.page.show_dialog(dlg)
 
         cards = [
             _list_card(ft.Row([

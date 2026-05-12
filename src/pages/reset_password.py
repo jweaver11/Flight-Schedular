@@ -1,7 +1,10 @@
 import flet as ft
 
-@ft.component
-def ResetPasswordPage():
+def ResetPasswordPage(page: ft.Page):
+
+    async def _push_login(e: ft.ControlEvent):
+        await page.push_route("/")
+
     return ft.SafeArea(
         ft.Column(
             [
@@ -15,7 +18,7 @@ def ResetPasswordPage():
                 ft.TextButton("Send Reset Email"),
                 
                 
-                ft.TextButton("Back to login", on_click=lambda: ft.context.page.navigate("/")),
+                ft.TextButton("Back to login", on_click=_push_login),
                
                 
             ],
