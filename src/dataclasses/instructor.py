@@ -6,3 +6,4 @@ class Instructor:
     name: str
     email: str
     password: str
+    schedule: list      # Standard schedule for instructor

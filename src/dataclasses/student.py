@@ -6,3 +6,4 @@ class Student:
     name: str
     email: str
     password: str
+    phone_number: str
