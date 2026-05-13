@@ -270,12 +270,40 @@ def InstructorViewPage(page: ft.Page):
     
     instructor_name = current_user.get("name", "Instructor")
 
+    #TODO: 
+    # - Instructors edit schedule
+    # - Fix booking available dates and times check based on included instructor, equip, and aircraft
+
+    async def _edit_schedule(e):
+
+        async def _confirm_schedule(e=None):
+            pass
+
+        page.show_dialog(ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Schedule Booking"),
+            content=ft.Container(
+                ft.Column([
+                    ft.Container(height=10),
+                    #ft.Row([date_f, time_f, duration_f], spacing=8),
+                    
+                ], spacing=12, scroll=ft.ScrollMode.AUTO),
+                width=540,
+                height=500,
+            ),
+            actions=[
+                ft.Button("Cancel",  on_click=lambda: page.pop_dialog()),
+                ft.Button("Confirm", on_click=_confirm_schedule),
+            ],
+        ))
+
     return ft.SafeArea(
         ft.Column([
             ft.Container(height=10),
             ft.Row([
                 ft.Text(f"Bookings for {instructor_name}", theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
                         weight=ft.FontWeight.BOLD, expand=True),
+                ft.Button("Edit Schedule", icon=ft.Icons.ADD, on_click=_edit_schedule),
                 ft.Button("Add Booking", icon=ft.Icons.ADD, on_click=_add_booking),
             ]),
             ft.Divider(),

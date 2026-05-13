@@ -120,7 +120,7 @@ def register_student(email: str, raw_password: str, name: str = "", phone: str =
     return {"email": email, "name": doc["name"], "role": "student"}
 
 
-def register_instructor(email: str, raw_password: str, name: str = "", schedule: str = "") -> dict:
+def register_instructor(email: str, raw_password: str, name: str = "") -> dict:
     """
     Create a new instructor account in the Instructors collection.
 
@@ -154,7 +154,15 @@ def register_instructor(email: str, raw_password: str, name: str = "", schedule:
     doc = {
         "email":         email,
         "name":          name.strip(),
-        "schedule":      schedule.strip(),
+        "schedule":      {
+            'Sunday':    "",
+            'Monday':    "9:00-17:00",
+            'Tuesday':   "9:00-17:00",
+            'Wednesday': "9:00-17:00",
+            'Thursday':  "9:00-17:00",
+            'Friday':    "9:00-17:00",
+            'Saturday':  "",
+        },
         "password_hash": hash_password(raw_password),
         "role":          "instructor",
     }

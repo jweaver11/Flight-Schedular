@@ -20,8 +20,8 @@ async def main(page: ft.Page):
         route = page.route
         match route:
             case "/":
-                #page.add(AdminViewPage(page))
-                page.add(InstructorViewPage(page))
+                page.add(AdminViewPage(page))
+                #page.add(InstructorViewPage(page))
                 #page.add(LoginPage(page))
             case "/register_account":
                 page.add(RegisterAccountPage(page))
