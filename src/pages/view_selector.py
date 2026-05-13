@@ -3,18 +3,20 @@
 import flet as ft
 
 
-def ViewSelector(page: ft.Page):
-    user = ft.context.page.session_data.get("user")
+async def ViewSelector(page: ft.Page):
+    user: dict = page.session.store.get("user")
 
+    # Should be impossible, but catches errors
     if user is None:
         # No session — send back to login
-        return ft.context.page.navigate("/")
+        await page.push_route("/")
+        return
 
     role = user.get("role", "student")
 
     if role == "admin":
-        return ft.context.page.navigate("/admin_view")
+        await page.push_route("/admin_view")
     elif role == "instructor":
-        return ft.context.page.navigate("/instructor_view")
+        await page.push_route("/instructor_view")
     else:
-        return ft.context.page.navigate("/student_view")
+        await page.push_route("/student_view")

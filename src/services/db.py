@@ -56,3 +56,79 @@ def aircrafts_col():
 def equipment_col():
     return get_db()["equipment"]
 
+
+# ── Delete helpers ────────────────────────────────────────────────────────────
+
+def delete_student(name: str, email: str) -> bool:
+    """Delete a student matched by both name and email. Returns True if deleted."""
+    result = students_col().delete_one({"name": name, "email": email})
+    return result.deleted_count > 0
+
+def delete_instructor(name: str, email: str) -> bool:
+    """Delete an instructor matched by both name and email. Returns True if deleted."""
+    result = instructors_col().delete_one({"name": name, "email": email})
+    return result.deleted_count > 0
+
+def delete_aircraft(name: str) -> bool:
+    """Delete an aircraft matched by name/tail number. Returns True if deleted."""
+    result = aircrafts_col().delete_one({"name": name})
+    return result.deleted_count > 0
+
+def delete_equipment(name: str) -> bool:
+    """Delete an equipment item matched by name. Returns True if deleted."""
+    result = equipment_col().delete_one({"name": name})
+    return result.deleted_count > 0
+
+def delete_pricing(name: str) -> bool:
+    """Delete a pricing entry matched by service name. Returns True if deleted."""
+    result = pricing_col().delete_one({"name": name})
+    return result.deleted_count > 0
+
+def cancel_booking(booking_id: str) -> bool:
+    """Mark a booking as cancelled (does not delete it). Returns True if updated."""
+    from bson import ObjectId
+    result = bookings_col().update_one(
+        {"_id": ObjectId(booking_id)},
+        {"$set": {"status": "cancelled"}},
+    )
+    return result.modified_count > 0
+
+
+def add_aircraft(name: str, aircraft_type: str, capacity: int, weight_limit: float = 0.0) -> bool:
+    """Insert a new aircraft. Returns False if a record with that name already exists."""
+    if aircrafts_col().find_one({"name": name}, {"_id": 1}):
+        return False
+    aircrafts_col().insert_one({"name": name, "type": aircraft_type, "capacity": capacity, "weight_limit": weight_limit})
+    return True
+
+
+def add_equipment(name: str, count: int) -> None:
+    """Add equipment, incrementing count if the item already exists (upsert)."""
+    equipment_col().update_one({"name": name}, {"$inc": {"count": count}}, upsert=True)
+
+
+def add_pricing(name: str, cost: float) -> bool:
+    """Insert a new pricing entry. Returns False if that service name already exists."""
+    if pricing_col().find_one({"name": name}, {"_id": 1}):
+        return False
+    pricing_col().insert_one({"name": name, "cost": cost})
+    return True
+
+def add_booking(date: str, time: str, duration: int, students: int, instructors: int, aircrafts: int, type: str) -> str:
+    """Insert a new booking. Returns the inserted document's ID as a string."""
+    # Check if the instructor or aircraft is already booked for the given date and time
+    existing_booking = bookings_col().find_one({'date': date, 'time': time, '$or': [{'instructors': instructors}, {'aircrafts': aircrafts}]})
+    if existing_booking:
+        raise ValueError("The instructor or aircraft is already booked for the given date and time.")
+    result = bookings_col().insert_one({
+        "date": date,
+        "time": time,
+        "duration": duration,
+        "students": students,
+        "instructors": instructors,
+        "aircrafts": aircrafts,
+        "type": type,
+        "status": "active",
+    })
+    return str(result.inserted_id)
+

@@ -18,7 +18,7 @@ def generate_admin_json():
 
     admin_user = Admin(
         email="",       # Change this
-        name="Josh Weaver Admin",
+        name="Tom Weaver Admin",
         password_hash=password_hash,
         role="admin"
     )
@@ -35,5 +35,5 @@ def create_admin_account(admin_json: str):
         raise ValueError(f"Admin with email '{data['email']}' already exists.")
 
     col.insert_one(data)
-    #print(f"Admin account created for {data['email']}")
+    print(f"Admin account created for {data['email']}")
 

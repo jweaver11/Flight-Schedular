@@ -1,32 +1,46 @@
 import flet as ft
-
+import asyncio
 from services.auth import verify_login
 
 
 def LoginPage(page: ft.Page):
-    #error_text, set_error_text = ft.use_state("")
-    #loading,    set_loading    = ft.use_state(False)
 
-    async def login_user():
-        #set_error_text("")
+    if page.session.store.get("user") is not None:
+        # User is already logged in — skip login page
+        asyncio.create_task(page.push_route, "/view_selector")
+        return
+
+    async def login_user(e=None):
+        error_text.value = ""
+        progress_ring.visible = True
+        progress_ring.update()
+        await asyncio.sleep(0)
+
         email_val    = email.value.strip()
         password_val = password.value
 
         if not email_val or not password_val:
-            #set_error_text("Please enter your email and password.")
+            error_text.value = "Please enter your email and password."
+            error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
-
-        #set_loading(True)
+        
         user = verify_login(email_val, password_val)
-        #set_loading(False)
-
+        
         if user is None:
             # Deliberately vague — don't reveal whether the email or password was wrong.
-            #set_error_text("Invalid email or password.")
+            error_text.value = "Invalid email or password."
+            error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
-
-        # Store the logged-in user's info for use across pages.
-        #page.session_data["user"] = user
+        
+        # Set the session data to the user
+        page.session.store.set("user", user)
+        #print(page.session.store.get("user"))
 
         # ViewSelector will read session_data["user"]["role"] and route accordingly.
         await page.push_route("/view_selector")
@@ -47,9 +61,11 @@ def LoginPage(page: ft.Page):
                 
                 email := ft.TextField(label="Email", keyboard_type=ft.KeyboardType.EMAIL),
 
-                password := ft.TextField(label="Password", password=True, can_reveal_password=True),
+                password := ft.TextField(label="Password", password=True, can_reveal_password=True, on_submit=login_user),
 
-                #ft.Text(error_text, color=ft.Colors.ERROR, size=13, visible=bool(error_text)),
+                progress_ring := ft.ProgressRing(visible=False),
+
+                error_text := ft.Text("", color=ft.Colors.ERROR, size=13, visible=False),
 
                 ft.Button(
                     "Login",

@@ -11,8 +11,8 @@ from pages.student_view import StudentViewPage
 async def main(page: ft.Page):
 
     # TEMP: Create admin accounts
-    from models.admin import generate_admin_json
-    generate_admin_json()
+    #from models.admin import generate_admin_json
+    #generate_admin_json()
 
     async def _route_change(e: ft.RouteChangeEvent):
         page.controls.clear()
@@ -20,13 +20,15 @@ async def main(page: ft.Page):
         route = page.route
         match route:
             case "/":
-                page.add(LoginPage(page))
+                #page.add(AdminViewPage(page))
+                page.add(InstructorViewPage(page))
+                #page.add(LoginPage(page))
             case "/register_account":
                 page.add(RegisterAccountPage(page))
             case "/reset_password":
                 page.add(ResetPasswordPage(page))
             case "/view_selector":
-                page.add(ViewSelector(page))
+                await ViewSelector(page)
             case "/admin_view":
                 page.add(AdminViewPage(page))
             case "/instructor_view":

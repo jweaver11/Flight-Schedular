@@ -118,3 +118,48 @@ def register_student(email: str, raw_password: str, name: str = "", phone: str =
 
     # Return a safe summary — never return the hash.
     return {"email": email, "name": doc["name"], "role": "student"}
+
+
+def register_instructor(email: str, raw_password: str, name: str = "", schedule: str = "") -> dict:
+    """
+    Create a new instructor account in the Instructors collection.
+
+    Parameters
+    ----------
+    email        : The instructor's email address (must be unique).
+    raw_password : The plaintext password supplied by the admin.
+                   It is hashed immediately and the raw value is discarded.
+    name         : Full name.
+    schedule     : Optional schedule string (e.g. "Mon–Fri 9 am–5 pm").
+
+    Returns
+    -------
+    A dict with the inserted document's details (without password_hash).
+
+    Raises
+    ------
+    EmailAlreadyExistsError  : if that email is already registered.
+    ValueError               : if email or password are blank.
+    """
+    email = email.lower().strip()
+
+    if not email or not raw_password:
+        raise ValueError("Email and password are required.")
+
+    # Check across all collections so an email can't be reused in another role.
+    for col in (admins_col(), instructors_col(), students_col()):
+        if col.find_one({"email": email}, {"_id": 1}):
+            raise EmailAlreadyExistsError("An account with that email already exists.")
+
+    doc = {
+        "email":         email,
+        "name":          name.strip(),
+        "schedule":      schedule.strip(),
+        "password_hash": hash_password(raw_password),
+        "role":          "instructor",
+    }
+
+    instructors_col().insert_one(doc)
+
+    # Return a safe summary — never return the hash.
+    return {"email": email, "name": doc["name"], "role": "instructor"}

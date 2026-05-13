@@ -1,5 +1,5 @@
 import flet as ft
-
+import asyncio
 from services.auth import register_student, EmailAlreadyExistsError
 
 
@@ -10,6 +10,8 @@ def RegisterAccountPage(page: ft.Page):
         error_text.value = ""
         error_text.visible = False
         progress_ring.visible = False
+        error_text.update()
+        progress_ring.update()
 
     # Our textfields we use to get our user input
     name = ft.TextField(label="Full Name", on_change=_reset_errors)
@@ -29,6 +31,8 @@ def RegisterAccountPage(page: ft.Page):
         ''' Handles checking our info is complex enough and non-duplicated, and passes it where it needs to go '''
 
         progress_ring.visible = True
+        progress_ring.update()
+        await asyncio.sleep(0)
 
         email_val    = email.value.strip()
         name_val     = name.value.strip()
@@ -40,31 +44,49 @@ def RegisterAccountPage(page: ft.Page):
         if not name_val:
             error_text.value = "Full name is required."
             error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
 
         if not email_val:
             error_text.value = "Email is required."
             error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
 
         if not phone_val:
             error_text.value = "Phone number is required."
             error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
 
         if not password_val:
             error_text.value = "Password is required."
             error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
 
         if password_val != confirm_val:
             error_text.value = "Passwords do not match."
             error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
 
         if len(password_val) < 8:
             error_text.value = "Password must be at least 8 characters"
             error_text.visible = True
+            error_text.update()
+            progress_ring.visible = False
+            progress_ring.update()
             return
 
         #set_loading(True)
@@ -77,7 +99,7 @@ def RegisterAccountPage(page: ft.Page):
             )
             # Show success snackbar then navigate to login
             sb = ft.SnackBar(
-                ft.Text("Account created successfully! Please log in."),
+                ft.Text("Account created successfully! Please log in.", color=ft.Colors.ON_SURFACE),
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                 shape=ft.RoundedRectangleBorder(ft.BorderSide(2, ft.Colors.GREEN), radius=8),
             )
@@ -111,7 +133,7 @@ def RegisterAccountPage(page: ft.Page):
                 error_text,
 
                 ft.Button("Create Account", on_click=submit),
-                ft.TextButton("Back to login", on_click=_push_login),
+                ft.Button("Back to login", on_click=_push_login),
 
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
