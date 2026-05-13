@@ -18,7 +18,7 @@ def generate_admin_json():
 
     admin_user = Admin(
         email="",       # Change this
-        name="Tom Weaver Admin",
+        name="",
         password_hash=password_hash,
         role="admin"
     )

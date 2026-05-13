@@ -89,7 +89,7 @@ def cancel_booking(booking_id: str) -> bool:
     from bson import ObjectId
     result = bookings_col().update_one(
         {"_id": ObjectId(booking_id)},
-        {"$set": {"status": "cancelled"}},
+        {"$set": {"cancelled": True}},
     )
     return result.modified_count > 0
 
@@ -114,12 +114,31 @@ def add_pricing(name: str, cost: float) -> bool:
     pricing_col().insert_one({"name": name, "cost": cost})
     return True
 
-def add_booking(date: str, time: str, duration: int, students: int, instructors: int, aircrafts: int, type: str) -> str:
+def add_booking(
+    date: str,
+    time: str,
+    duration: int,
+    students: list,
+    instructors: list,
+    aircrafts: list,
+    equipment: list = None,
+    type: str = "lesson",
+    instructor_time_off: bool = False,
+    aircraft_maintenance: bool = False,
+) -> str:
     """Insert a new booking. Returns the inserted document's ID as a string."""
-    # Check if the instructor or aircraft is already booked for the given date and time
-    existing_booking = bookings_col().find_one({'date': date, 'time': time, '$or': [{'instructors': instructors}, {'aircrafts': aircrafts}]})
-    if existing_booking:
-        raise ValueError("The instructor or aircraft is already booked for the given date and time.")
+    # Check for scheduling conflicts: same date/time with any overlapping instructor or aircraft
+    existing = bookings_col().find_one({
+        "date": date,
+        "time": time,
+        "cancelled": {"$ne": True},
+        "$or": [
+            {"instructors": {"$in": instructors}},
+            {"aircrafts":   {"$in": aircrafts}},
+        ],
+    })
+    if existing:
+        raise ValueError("One or more instructors or aircraft are already booked at that date and time.")
     result = bookings_col().insert_one({
         "date": date,
         "time": time,
@@ -127,8 +146,11 @@ def add_booking(date: str, time: str, duration: int, students: int, instructors:
         "students": students,
         "instructors": instructors,
         "aircrafts": aircrafts,
+        "equipment": equipment or [],
         "type": type,
-        "status": "active",
+        "cancelled": False,
+        "instructor_time_off": instructor_time_off,
+        "aircraft_maintenance": aircraft_maintenance,
     })
     return str(result.inserted_id)
 

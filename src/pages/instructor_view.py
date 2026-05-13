@@ -2,287 +2,283 @@
 
 import flet as ft
 import datetime
-import calendar as cal_module
+from services.db import (
+    bookings_col, students_col, instructors_col, aircrafts_col, equipment_col,
+    cancel_booking, add_booking,
+)
 
+def InstructorViewPage(page: ft.Page):
 
-def _open_dialog(dialog):
-    if dialog not in ft.context.page.overlay:
-        ft.context.page.overlay.append(dialog)
-    dialog.open = True
-    ft.context.page.update()
+    # ── Load data ──────────────────────────────────────────────────────────
+    bookings_raw = list(bookings_col().find(
+        {},
+        {
+            "date": 1, "time": 1, "duration": 1, "type": 1, "status": 1,
+            "students": 1, "student": 1,
+            "instructors": 1, "instructor": 1,
+            "aircrafts": 1, "aircraft": 1,
+            "equipment": 1,
+            "instructor_time_off": 1, "aircraft_maintenance": 1,
+        }
+    ))
+    for _b in bookings_raw:
+        _b["_id"] = str(_b.get("_id", ""))
+    bookings = bookings_raw
 
+    students_list    = list(students_col().find({},   {"_id": 0, "name": 1, "email": 1}))
+    instructors_list = list(instructors_col().find({}, {"_id": 0, "name": 1, "email": 1}))
+    aircraft_list    = list(aircrafts_col().find({},  {"_id": 0, "name": 1, "type": 1}))
+    equipment_list   = list(equipment_col().find({},  {"_id": 0, "name": 1, "count": 1}))
 
-def _close_dialog(dialog):
-    dialog.open = False
-    ft.context.page.update()
+    today             = datetime.date.today()
+    today_str         = today.isoformat()
+    current_user      = page.session.store.get("user") or {}
+    current_user_name = current_user.get("name", "")
 
+    # ── Shared helpers ─────────────────────────────────────────────────────
+    def _to_list(v):
+        if isinstance(v, list): return v
+        return [v] if v else []
 
-def InstructorViewPage():
-    selected_tab,  set_selected_tab  = ft.use_state(0)
-    current_year,  set_current_year  = ft.use_state(datetime.date.today().year)
-    current_month, set_current_month = ft.use_state(datetime.date.today().month)
+    def _fmt_list(v):
+        items = _to_list(v)
+        return ", ".join(str(i) for i in items) if items else "N/A"
 
-    # ── Mock data  (replace with DB calls) ────────────────────────────────
-    instructor_name = "Kevin Smith"
+    def _is_my_booking(b):
+        instructors_val = b.get("instructors") or b.get("instructor")
+        return current_user_name in _to_list(instructors_val)
 
-    # Days in the current month that have bookings
-    booked_days = {5, 7, 12, 14, 19, 21}
+    def _show_success(msg: str):
+        page.show_dialog(ft.SnackBar(
+            ft.Text(msg, color=ft.Colors.ON_SURFACE),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            shape=ft.RoundedRectangleBorder(ft.BorderSide(2, ft.Colors.GREEN), radius=8),
+        ))
 
-    upcoming_sessions = [
-        {"student": "John Doe",     "date": "May 14", "time": "9:00–11:00 AM",    "type": "Flight Lesson",  "aircraft": "Cessna 172"},
-        {"student": "Jane Smith",   "date": "May 14", "time": "1:00–3:00 PM",     "type": "Ground School",  "aircraft": "N/A"},
-        {"student": "Mike Johnson", "date": "May 19", "time": "10:00 AM–12:00 PM","type": "Flight Lesson",  "aircraft": "Piper PA-28"},
-        {"student": "Sarah Lee",    "date": "May 21", "time": "2:00–4:00 PM",     "type": "Checkride Prep", "aircraft": "Cessna 172"},
+    def _show_error(msg: str):
+        page.show_dialog(ft.SnackBar(
+            ft.Text(msg, color=ft.Colors.ON_SURFACE),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            shape=ft.RoundedRectangleBorder(ft.BorderSide(2, ft.Colors.RED), radius=8),
+        ))
+
+    def _list_card(content):
+        return ft.Container(
+            content,
+            bgcolor=ft.Colors.SURFACE_CONTAINER,
+            border_radius=8,
+            padding=ft.Padding.symmetric(horizontal=16, vertical=12),
+        )
+
+    # ── Filtered lists ─────────────────────────────────────────────────────
+    your_upcoming = [
+        b for b in bookings
+        if b.get("status") != "cancelled"
+        and _is_my_booking(b)
+        and b.get("date", "") >= today_str
     ]
+    all_future = [
+        b for b in bookings
+        if b.get("status") != "cancelled" and b.get("date", "") >= today_str
+    ]
+    all_past = [
+        b for b in bookings
+        if b.get("status") != "cancelled" and b.get("date", "") < today_str
+    ]
+    all_cancelled = [b for b in bookings if b.get("status") == "cancelled"]
 
-    # ── Month navigation ──────────────────────────────────────────────────
-    def _prev_month():
-        if current_month == 1:
-            set_current_month(12)
-            set_current_year(current_year - 1)
-        else:
-            set_current_month(current_month - 1)
+    # ── Cancel booking ─────────────────────────────────────────────────────
+    async def _cancel_booking_fn(e: ft.Event):
+        booking = e.control.data
 
-    def _next_month():
-        if current_month == 12:
-            set_current_month(1)
-            set_current_year(current_year + 1)
-        else:
-            set_current_month(current_month + 1)
+        async def _confirm(e=None):
+            cancel_booking(booking["_id"])
+            page.pop_dialog()
+            _show_success("Booking cancelled.")
+            await page.push_route("/view_selector")
 
-    # ── Monthly calendar ──────────────────────────────────────────────────
-    def _build_calendar():
-        month_cal  = cal_module.monthcalendar(current_year, current_month)
-        month_name = cal_module.month_name[current_month]
-        today      = datetime.date.today()
+        page.show_dialog(ft.AlertDialog(
+            title="Cancel this booking?",
+            actions=[
+                ft.Button("Keep",           on_click=lambda: page.pop_dialog()),
+                ft.Button("Cancel Booking", on_click=_confirm),
+            ],
+        ))
 
-        day_headers = ft.Row([
-            ft.Container(
-                ft.Text(d, size=11, weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                        text_align=ft.TextAlign.CENTER),
-                width=44, alignment=ft.alignment.center,
-            )
-            for d in ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-        ])
+    # ── Booking card ───────────────────────────────────────────────────────
+    def _booking_card(b, show_cancel=False):
+        students_v    = _fmt_list(b.get("students")    or b.get("student"))
+        instructors_v = _fmt_list(b.get("instructors") or b.get("instructor"))
+        aircrafts_v   = _fmt_list(b.get("aircrafts")   or b.get("aircraft"))
+        equipment_v   = _fmt_list(b.get("equipment"))
+        booking_type  = b.get("type", "")
+        is_time_off   = b.get("instructor_time_off", False)
+        is_maint      = b.get("aircraft_maintenance", False)
 
-        week_rows = []
-        for week in month_cal:
-            day_cells = []
-            for day in week:
-                if day == 0:
-                    day_cells.append(ft.Container(width=44, height=44))
-                    continue
-                is_today  = datetime.date(current_year, current_month, day) == today
-                is_booked = day in booked_days
-                bg    = ft.Colors.PRIMARY           if is_today  else (ft.Colors.SECONDARY_CONTAINER if is_booked else None)
-                fg    = ft.Colors.WHITE             if is_today  else (ft.Colors.ON_SECONDARY_CONTAINER if is_booked else None)
-                tip   = "Booking on this day"       if is_booked else None
-                day_cells.append(
-                    ft.Container(
-                        ft.Text(str(day), size=13, color=fg,
-                                text_align=ft.TextAlign.CENTER,
-                                weight=ft.FontWeight.W_500 if is_today else None),
-                        width=44, height=44,
-                        bgcolor=bg, border_radius=22,
-                        alignment=ft.alignment.center,
-                        tooltip=tip,
-                    )
-                )
-            week_rows.append(ft.Row(day_cells, spacing=4))
+        tag_row = ft.Row(
+            [
+                ft.Text(f"{b.get('date', '')}  {b.get('time', '')}", weight=ft.FontWeight.W_500),
+                *(
+                    [ft.Container(
+                        ft.Text("Time Off", size=10, color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.ORANGE, border_radius=4, padding=ft.Padding.symmetric(horizontal=6, vertical=2),
+                    )] if is_time_off else []
+                ),
+                *(
+                    [ft.Container(
+                        ft.Text("Maintenance", size=10, color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.BLUE, border_radius=4, padding=ft.Padding.symmetric(horizontal=6, vertical=2),
+                    )] if is_maint else []
+                ),
+            ],
+            spacing=8, wrap=True,
+        )
 
-        legend = ft.Row([
-            ft.Container(width=12, height=12, bgcolor=ft.Colors.PRIMARY,            border_radius=6),
-            ft.Text("Today",   size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-            ft.Container(width=12, height=12, bgcolor=ft.Colors.SECONDARY_CONTAINER, border_radius=6),
-            ft.Text("Booking", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-        ], spacing=6)
+        detail_col = ft.Column([
+            tag_row,
+            ft.Text(f"Students: {students_v}",       size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Text(f"Instructors: {instructors_v}",  size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Text(f"Aircraft: {aircrafts_v}",       size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Text(f"Equipment: {equipment_v}",      size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Text(f"Type: {booking_type}",          size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+            if booking_type else ft.Container(height=0),
+        ], spacing=3, expand=True)
 
-        return ft.Column([
-            ft.Row([
-                ft.IconButton(ft.Icons.CHEVRON_LEFT,  on_click=lambda: _prev_month()),
-                ft.Text(f"{month_name} {current_year}", weight=ft.FontWeight.BOLD,
-                        size=18, expand=True, text_align=ft.TextAlign.CENTER),
-                ft.IconButton(ft.Icons.CHEVRON_RIGHT, on_click=lambda: _next_month()),
-            ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        return _list_card(ft.Row(
+            [
+                detail_col,
+                ft.Button("Cancel", on_click=_cancel_booking_fn, data=b)
+                if show_cancel else ft.Container(width=0),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ))
+
+    def _booking_section(title, items, show_cancel=False):
+        rows = (
+            [_booking_card(b, show_cancel) for b in items]
+            if items else
+            [ft.Text("None.", color=ft.Colors.ON_SURFACE_VARIANT, size=12)]
+        )
+        return [
+            ft.Text(title, theme_style=ft.TextThemeStyle.TITLE_MEDIUM,
+                    weight=ft.FontWeight.W_600),
             ft.Divider(),
-            day_headers,
-            ft.Column(week_rows, spacing=4),
-            ft.Container(height=6),
-            legend,
-        ], spacing=4)
-
-    # ── Tab: My Schedule ──────────────────────────────────────────────────
-    def _build_schedule():
-        def open_time_off():
-            dlg = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Request Time Off"),
-                content=ft.Column([
-                    ft.Text("Mark a date range as unavailable for bookings.",
-                            size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-                    ft.TextField(label="Start Date  (YYYY-MM-DD)"),
-                    ft.TextField(label="End Date    (YYYY-MM-DD)"),
-                    ft.TextField(label="Reason (optional)"),
-                ], tight=True, spacing=12),
-                actions=[
-                    ft.TextButton("Cancel",    on_click=lambda: _close_dialog(dlg)),
-                    ft.ElevatedButton("Submit",on_click=lambda: _close_dialog(dlg)),  # TODO: persist
-                ],
-            )
-            _open_dialog(dlg)
-
-        return ft.Column([
-            ft.Row([
-                ft.Text("My Schedule",
-                        theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
-                        weight=ft.FontWeight.BOLD),
-                ft.OutlinedButton("Request Time Off", icon=ft.Icons.EVENT_BUSY,
-                                  on_click=lambda: open_time_off()),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            ft.Divider(),
-            _build_calendar(),
-        ], spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
-
-    # ── Tab: Upcoming Sessions ────────────────────────────────────────────
-    def _build_sessions():
-        cards = [
-            ft.Container(
-                ft.Row([
-                    ft.Container(
-                        ft.Icon(
-                            ft.Icons.FLIGHT_TAKEOFF if "Flight" in s["type"] else ft.Icons.SCHOOL,
-                            color=ft.Colors.PRIMARY, size=22,
-                        ),
-                        bgcolor=ft.Colors.PRIMARY_CONTAINER,
-                        border_radius=8, padding=10,
-                    ),
-                    ft.Column([
-                        ft.Text(s["student"], weight=ft.FontWeight.W_600),
-                        ft.Text(f"{s['type']}  ·  {s['aircraft']}",
-                                size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                        ft.Text(f"{s['date']}  ·  {s['time']}",
-                                size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                    ], spacing=2, expand=True),
-                    ft.IconButton(ft.Icons.CANCEL, tooltip="Cancel session",
-                                  icon_color=ft.Colors.ERROR),
-                ], vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=12),
-                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                border_radius=10,
-                padding=ft.Padding.symmetric(horizontal=16, vertical=12),
-            )
-            for s in upcoming_sessions
+            *rows,
+            ft.Container(height=16),
         ]
 
-        return ft.Column([
-            ft.Text("Upcoming Sessions",
-                    theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
-                    weight=ft.FontWeight.BOLD),
-            ft.Divider(),
-            ft.Text(f"{len(upcoming_sessions)} sessions scheduled",
-                    size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-        ] + cards, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+    # ── Add booking dialog ─────────────────────────────────────────────────
+    async def _add_booking(e):
+        date_f     = ft.TextField(label="Date (YYYY-MM-DD)", hint_text="2026-06-15", expand=True)
+        time_f     = ft.TextField(label="Time (HH:MM)",      hint_text="09:00",      expand=True)
+        duration_f = ft.TextField(label="Duration (min)",    value="60",             expand=True,
+                                   keyboard_type=ft.KeyboardType.NUMBER, input_filter=ft.NumbersOnlyInputFilter(),)
+        type_f     = ft.TextField(label="Lesson Type", hint_text="Discovery Flight, Solo, Checkride…")
+        time_off_cb = ft.Checkbox(label="Mark as Instructor Time Off",   value=False)
+        maint_cb    = ft.Checkbox(label="Mark as Aircraft Maintenance",  value=False)
 
-    # ── Tab: Account ──────────────────────────────────────────────────────
-    def _build_account():
-        def open_change_password():
-            dlg = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("Change Password"),
-                content=ft.Column([
-                    ft.TextField(label="Current Password", password=True, can_reveal_password=True),
-                    ft.TextField(label="New Password",     password=True, can_reveal_password=True),
-                    ft.TextField(label="Confirm Password", password=True, can_reveal_password=True),
-                ], tight=True, spacing=12),
-                actions=[
-                    ft.TextButton("Cancel",   on_click=lambda: _close_dialog(dlg)),
-                    ft.ElevatedButton("Save", on_click=lambda: _close_dialog(dlg)),  # TODO: persist
-                ],
+        # Pre-check the current user as an instructor
+        instructor_checks = [
+            ft.Checkbox(label=i["name"], value=(i["name"] == current_user_name), data=i["name"])
+            for i in instructors_list
+        ]
+        student_checks  = [ft.Checkbox(label=s["name"],  value=False, data=s["name"])  for s in students_list]
+        aircraft_checks = [ft.Checkbox(label=a["name"],  value=False, data=a["name"])  for a in aircraft_list]
+        equipment_checks = [
+            ft.Checkbox(label=f"{eq['name']} (qty: {eq.get('count', 0)})", value=False, data=eq["name"])
+            for eq in equipment_list
+        ]
+
+        def _checked(checks):
+            return [c.data for c in checks if c.value]
+
+        def _multi_section(title, checks):
+            body = (
+                ft.Column(checks, spacing=0)
+                if checks else
+                ft.Text("None available.", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
             )
-            _open_dialog(dlg)
+            return ft.Column([
+                ft.Text(title, weight=ft.FontWeight.W_600, size=13),
+                body,
+            ], spacing=4)
 
+        async def _confirm_booking(e=None):
+            if not date_f.value or not time_f.value:
+                _show_error("Date and time are required.")
+                return
+            try:
+                dur = int(duration_f.value or 60)
+            except ValueError:
+                _show_error("Duration must be a whole number.")
+                return
+
+            page.pop_dialog()
+            try:
+                add_booking(
+                    date=date_f.value.strip(),
+                    time=time_f.value.strip(),
+                    duration=dur,
+                    students=_checked(student_checks),
+                    instructors=_checked(instructor_checks),
+                    aircrafts=_checked(aircraft_checks),
+                    equipment=_checked(equipment_checks),
+                    type=type_f.value.strip(),
+                    instructor_time_off=time_off_cb.value,
+                    aircraft_maintenance=maint_cb.value,
+                )
+                await page.push_route("/view_selector")
+                _show_success("Booking created successfully.")
+            except ValueError as ex:
+                _show_error(str(ex))
+
+        page.show_dialog(ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Schedule Booking"),
+            content=ft.Container(
+                ft.Column([
+                    ft.Container(height=10),
+                    ft.Row([date_f, time_f, duration_f], spacing=8),
+                    type_f,
+                    ft.Divider(),
+                    _multi_section("Students",    student_checks),
+                    _multi_section("Instructors", instructor_checks),
+                    _multi_section("Aircraft",    aircraft_checks),
+                    _multi_section("Equipment",   equipment_checks),
+                    ft.Divider(),
+                    time_off_cb,
+                    maint_cb,
+                ], spacing=12, scroll=ft.ScrollMode.AUTO),
+                width=540,
+                height=500,
+            ),
+            actions=[
+                ft.Button("Cancel",  on_click=lambda: page.pop_dialog()),
+                ft.Button("Confirm", on_click=_confirm_booking),
+            ],
+        ))
+
+    # ── Main layout ────────────────────────────────────────────────────────
+    def _get_bookings():
         return ft.Column([
-            ft.Text("Account",
-                    theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
-                    weight=ft.FontWeight.BOLD),
-            ft.Divider(),
-            ft.Container(
-                ft.Row([
-                    ft.Icon(ft.Icons.ACCOUNT_CIRCLE, size=52, color=ft.Colors.PRIMARY),
-                    ft.Column([
-                        ft.Text(instructor_name,
-                                theme_style=ft.TextThemeStyle.TITLE_MEDIUM,
-                                weight=ft.FontWeight.BOLD),
-                        ft.Text("Flight Instructor", size=13,
-                                color=ft.Colors.ON_SURFACE_VARIANT),
-                    ], spacing=2),
-                ], spacing=16, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                border_radius=12, padding=20,
-            ),
-            ft.Container(height=8),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.LOCK),
-                title=ft.Text("Change Password"),
-                subtitle=ft.Text("Update your login password"),
-                trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                on_click=lambda: open_change_password(),
-                shape=ft.RoundedRectangleBorder(radius=10),
-            ),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.LOGOUT, color=ft.Colors.ERROR),
-                title=ft.Text("Log Out", color=ft.Colors.ERROR),
-                trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
-                on_click=lambda: ft.context.page.navigate("/"),
-                shape=ft.RoundedRectangleBorder(radius=10),
-            ),
-        ], spacing=4, scroll=ft.ScrollMode.AUTO, expand=True)
-
-    # ── Layout ────────────────────────────────────────────────────────────
-    tabs = [_build_schedule, _build_sessions, _build_account]
-    current_content = tabs[selected_tab]()
+            *_booking_section("Your Upcoming Bookings", your_upcoming,  show_cancel=True),
+            *_booking_section("All Upcoming Bookings",  all_future,     show_cancel=False),
+            *_booking_section("All Past Bookings",      all_past,       show_cancel=False),
+            *_booking_section("All Cancelled Bookings", all_cancelled,  show_cancel=False),
+        ], expand=True, scroll=ft.ScrollMode.AUTO, spacing=4)
+    
+    instructor_name = current_user.get("name", "Instructor")
 
     return ft.SafeArea(
         ft.Column([
-            # App bar
-            ft.Container(
-                ft.Row([
-                    ft.Icon(ft.Icons.FLIGHT, color=ft.Colors.PRIMARY),
-                    ft.Text("Chopper Aviation", weight=ft.FontWeight.BOLD, size=18),
-                    ft.Container(expand=True),
-                    ft.Text(f"Welcome, {instructor_name.split()[0]}",
-                            size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-                ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.Padding.symmetric(horizontal=16, vertical=8),
-            ),
-            # Content
-            ft.Container(
-                current_content, expand=True,
-                padding=ft.Padding.symmetric(horizontal=16, vertical=8),
-            ),
-            # Bottom nav
-            ft.NavigationBar(
-                destinations=[
-                    ft.NavigationBarDestination(
-                        icon=ft.Icons.DATE_RANGE,
-                        selected_icon=ft.Icons.DATE_RANGE,
-                        label="Schedule",
-                    ),
-                    ft.NavigationBarDestination(
-                        icon=ft.Icons.LIST_ALT,
-                        selected_icon=ft.Icons.LIST_ALT,
-                        label="Sessions",
-                    ),
-                    ft.NavigationBarDestination(
-                        icon=ft.Icons.PERSON,
-                        selected_icon=ft.Icons.PERSON,
-                        label="Account",
-                    ),
-                ],
-                selected_index=selected_tab,
-                on_change=lambda e: set_selected_tab(int(e.data)),
-            ),
-        ], expand=True),
-        minimum_padding=0,
-        expand=True,
+            ft.Container(height=10),
+            ft.Row([
+                ft.Text(f"Bookings for {instructor_name}", theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
+                        weight=ft.FontWeight.BOLD, expand=True),
+                ft.Button("Add Booking", icon=ft.Icons.ADD, on_click=_add_booking),
+            ]),
+            ft.Divider(),
+            ft.Container(_get_bookings(), padding=ft.Padding.symmetric(horizontal=20), expand=True),
+        ], expand=True, scroll=ft.ScrollMode.ALWAYS),
     )
