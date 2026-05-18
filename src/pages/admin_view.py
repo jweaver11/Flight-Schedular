@@ -7,7 +7,7 @@ from services.db import (
     delete_student, delete_instructor, delete_aircraft, delete_equipment, delete_pricing,
     cancel_booking, add_aircraft, add_equipment, add_pricing, add_booking,
 )
-from services.auth import verify_login, register_instructor, EmailAlreadyExistsError
+from services.auth import verify_login, register_instructor, reset_student_password, EmailAlreadyExistsError
 import asyncio
 
 def AdminViewPage(page: ft.Page):
@@ -173,9 +173,51 @@ def AdminViewPage(page: ft.Page):
             )
             pass
 
+        async def _reset_password(e: ft.Event=None):
+            email_f = ft.TextField(label="Student Email")
+            pwd_f   = ft.TextField(label="New Password", password=True, can_reveal_password=True)
+            error_t = ft.Text("", color=ft.Colors.RED, size=12, visible=False)
+
+            async def _submit(e=None):
+                email_val = email_f.value.strip()
+                pwd_val   = pwd_f.value
+                if not email_val or not pwd_val:
+                    error_t.value   = "Both email and new password are required."
+                    error_t.visible = True
+                    error_t.update()
+                    return
+                page.pop_dialog()
+                try:
+                    found = reset_student_password(email_val, pwd_val)
+                except ValueError as ex:
+                    _show_error(str(ex))
+                    return
+                if found:
+                    _show_success(f"Password reset for {email_val}")
+                else:
+                    _show_error(f"No student account found for {email_val}")
+
+            page.show_dialog(ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Reset Student Password"),
+                content=ft.Column(
+                    [email_f, pwd_f, error_t],
+                    tight=True, spacing=12,
+                ),
+                actions=[
+                    ft.Button("Cancel", on_click=lambda _: page.pop_dialog()),
+                    ft.Button("Reset Password", on_click=_submit),
+                ],
+            ))
+
         return ft.Column([
-            ft.Text("Students", theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
-                    weight=ft.FontWeight.BOLD),
+            ft.Row([
+                ft.Text(
+                    "Students", theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
+                    weight=ft.FontWeight.BOLD, expand=True
+                ),
+                ft.Button("Reset a Student Password", ft.Icons.LOCK_RESET, on_click=_reset_password),
+            ]),
             ft.Divider(),
             _stat_card("Total Students", str(len(students)), ft.Icons.REDUCE_CAPACITY),
             ft.Divider(),

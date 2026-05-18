@@ -46,10 +46,8 @@ def LoginPage(page: ft.Page):
         await page.push_route("/view_selector")
 
     async def _push_register(e: ft.ControlEvent):
+        
         await page.push_route("/register_account")
-
-    async def _push_reset(e: ft.ControlEvent):
-        await page.push_route("/reset_password")
 
     # Student view
     return ft.SafeArea(
@@ -74,10 +72,7 @@ def LoginPage(page: ft.Page):
                     #icon=ft.Icons.LOOP if loading else None,
                 ),
                     
-                ft.Row([
-                    ft.Button("Sign Up", on_click=_push_register),
-                    ft.Button("Forgot Password?", on_click=_push_reset),
-                ], spacing=50, tight=True)
+                ft.Button("Sign Up", on_click=_push_register),
                 
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,

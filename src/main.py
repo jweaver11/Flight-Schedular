@@ -1,6 +1,5 @@
 import flet as ft
 from pages.register_account import RegisterAccountPage
-from pages.reset_password import ResetPasswordPage
 from pages.login import LoginPage
 from pages.view_selector import ViewSelector
 from pages.admin_view import AdminViewPage
@@ -20,13 +19,11 @@ async def main(page: ft.Page):
         route = page.route
         match route:
             case "/":
-                page.add(AdminViewPage(page))
-                #page.add(InstructorViewPage(page))
+                #page.add(AdminViewPage(page))
+                page.add(InstructorViewPage(page))
                 #page.add(LoginPage(page))
             case "/register_account":
                 page.add(RegisterAccountPage(page))
-            case "/reset_password":
-                page.add(ResetPasswordPage(page))
             case "/view_selector":
                 await ViewSelector(page)
             case "/admin_view":

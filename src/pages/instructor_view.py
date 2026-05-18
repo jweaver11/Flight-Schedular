@@ -273,6 +273,7 @@ def InstructorViewPage(page: ft.Page):
     #TODO: 
     # - Instructors edit schedule
     # - Fix booking available dates and times check based on included instructor, equip, and aircraft
+    # - Fix scroll glitch
 
     async def _edit_schedule(e):
 
@@ -303,7 +304,7 @@ def InstructorViewPage(page: ft.Page):
             ft.Row([
                 ft.Text(f"Bookings for {instructor_name}", theme_style=ft.TextThemeStyle.HEADLINE_SMALL,
                         weight=ft.FontWeight.BOLD, expand=True),
-                ft.Button("Edit Schedule", icon=ft.Icons.ADD, on_click=_edit_schedule),
+                ft.Button("Edit Schedule", icon=ft.Icons.EDIT, on_click=_edit_schedule),
                 ft.Button("Add Booking", icon=ft.Icons.ADD, on_click=_add_booking),
             ]),
             ft.Divider(),

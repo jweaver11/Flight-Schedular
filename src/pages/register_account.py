@@ -115,6 +115,9 @@ def RegisterAccountPage(page: ft.Page):
         
 
     async def _push_login(e: ft.ControlEvent):
+        progress_ring.visible = True
+        progress_ring.update()
+        await asyncio.sleep(0)
         await page.push_route("/")
 
     return ft.SafeArea(

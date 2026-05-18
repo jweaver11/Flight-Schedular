@@ -120,6 +120,27 @@ def register_student(email: str, raw_password: str, name: str = "", phone: str =
     return {"email": email, "name": doc["name"], "role": "student"}
 
 
+def reset_student_password(email: str, new_raw_password: str) -> bool:
+    """
+    Update the password_hash for a student account identified by email.
+
+    Returns True if the student was found and updated, False if no matching
+    student account exists.
+
+    Raises
+    ------
+    ValueError : if email or new_raw_password is blank.
+    """
+    email = email.lower().strip()
+    if not email or not new_raw_password:
+        raise ValueError("Email and new password are required.")
+    result = students_col().update_one(
+        {"email": email},
+        {"$set": {"password_hash": hash_password(new_raw_password)}},
+    )
+    return result.matched_count > 0
+
+
 def register_instructor(email: str, raw_password: str, name: str = "") -> dict:
     """
     Create a new instructor account in the Instructors collection.
